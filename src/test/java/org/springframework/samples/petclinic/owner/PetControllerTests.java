@@ -19,6 +19,9 @@ package org.springframework.samples.petclinic.owner;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.junit.jupiter.api.condition.DisabledInNativeImage;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -35,6 +38,7 @@ import java.util.Optional;
 import org.springframework.dao.DataIntegrityViolationException;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
@@ -150,6 +154,31 @@ class PetControllerTests {
 				.param("birthDate", "2015-02-12"))
 			.andExpect(status().is3xxRedirection())
 			.andExpect(view().name("redirect:/owners/{ownerId}"));
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = { "/pets/new", "/pets/1/edit" })
+	void nestedDuplicatePetNameViolation(String path) throws Exception {
+		given(owners.saveAndFlush(any(Owner.class))).willThrow(new DataIntegrityViolationException(null,
+				new IllegalStateException("Constraint UNIQUE_OWNER_PET_NAME violated")));
+		mockMvc
+			.perform(post("/owners/{ownerId}" + path, TEST_OWNER_ID).param("name", "Betty")
+				.param("type", "hamster")
+				.param("birthDate", "2015-02-12"))
+			.andExpect(status().isOk())
+			.andExpect(model().attributeHasFieldErrorCode("pet", "name", "duplicate"))
+			.andExpect(view().name("pets/createOrUpdatePetForm"));
+	}
+
+	@ParameterizedTest
+	@CsvSource(value = { "/pets/new,NULL", "/pets/new,Other constraint", "/pets/1/edit,NULL",
+			"/pets/1/edit,Other constraint" }, nullValues = "NULL")
+	void unrelatedIntegrityViolationsAreRethrown(String path, String message) {
+		DataIntegrityViolationException violation = new DataIntegrityViolationException(message);
+		given(owners.saveAndFlush(any(Owner.class))).willThrow(violation);
+		assertThatThrownBy(() -> mockMvc.perform(post("/owners/{ownerId}" + path, TEST_OWNER_ID).param("name", "Betty")
+			.param("type", "hamster")
+			.param("birthDate", "2015-02-12"))).hasCause(violation);
 	}
 
 	@Nested

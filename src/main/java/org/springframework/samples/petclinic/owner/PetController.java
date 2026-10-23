@@ -17,8 +17,10 @@ package org.springframework.samples.petclinic.owner;
 
 import java.time.LocalDate;
 import java.util.Collection;
+import java.util.Locale;
 import java.util.Objects;
 
+import org.jspecify.annotations.NonNull;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Controller;
@@ -198,9 +200,14 @@ class PetController {
 		this.owners.saveAndFlush(owner);
 	}
 
-	private boolean isDuplicatePetNameViolation(DataIntegrityViolationException ex) {
-		String message = ex.getMessage();
-		return message != null && message.toLowerCase().contains("unique_owner_pet_name");
+	private boolean isDuplicatePetNameViolation(@NonNull DataIntegrityViolationException ex) {
+		for (Throwable cause = ex; cause != null; cause = cause.getCause()) {
+			String message = cause.getMessage();
+			if (message != null && message.toLowerCase(Locale.ROOT).contains("unique_owner_pet_name")) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 }
