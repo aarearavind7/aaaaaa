@@ -34,8 +34,12 @@ import java.util.Optional;
 
 import org.springframework.dao.DataIntegrityViolationException;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.model;
@@ -91,7 +95,51 @@ class PetControllerTests {
 		mockMvc.perform(get("/owners/{ownerId}/pets/new", TEST_OWNER_ID))
 			.andExpect(status().isOk())
 			.andExpect(view().name("pets/createOrUpdatePetForm"))
-			.andExpect(model().attributeExists("pet"));
+			.andExpect(model().attributeExists("pet"))
+			.andExpect(result -> {
+				Owner owner = (Owner) result.getModelAndView().getModel().get("owner");
+				Pet pet = (Pet) result.getModelAndView().getModel().get("pet");
+				assertThat(owner.getPets()).contains(pet);
+			});
+	}
+
+	@Test
+	void missingOwnerReturnsNotFound() throws Exception {
+		given(owners.findById(999)).willReturn(Optional.empty());
+		mockMvc.perform(get("/owners/{ownerId}/pets/new", 999)).andExpect(status().isNotFound());
+		mockMvc.perform(get("/owners/{ownerId}/pets/{petId}/edit", 999, TEST_PET_ID)).andExpect(status().isNotFound());
+		mockMvc.perform(post("/owners/{ownerId}/pets/new", 999)).andExpect(status().isNotFound());
+		mockMvc.perform(post("/owners/{ownerId}/pets/{petId}/edit", 999, TEST_PET_ID)).andExpect(status().isNotFound());
+		verify(owners, never()).saveAndFlush(any(Owner.class));
+	}
+
+	@Test
+	void petOutsideOwnerReturnsNotFound() throws Exception {
+		Owner otherOwner = new Owner();
+		Pet otherPet = new Pet();
+		otherPet.setId(999);
+		otherOwner.addPet(otherPet);
+		given(owners.findById(2)).willReturn(Optional.of(otherOwner));
+		mockMvc.perform(get("/owners/{ownerId}/pets/{petId}/edit", 2, 999)).andExpect(status().isOk());
+		mockMvc.perform(get("/owners/{ownerId}/pets/{petId}/edit", TEST_OWNER_ID, 999))
+			.andExpect(status().isNotFound());
+		mockMvc
+			.perform(post("/owners/{ownerId}/pets/{petId}/edit", TEST_OWNER_ID, 999).param("name", "Betty")
+				.param("type", "hamster")
+				.param("birthDate", "2015-02-12"))
+			.andExpect(status().isNotFound());
+		verify(owners, never()).saveAndFlush(any(Owner.class));
+	}
+
+	@Test
+	void updateFormReusesOwnerPet() throws Exception {
+		mockMvc.perform(get("/owners/{ownerId}/pets/{petId}/edit", TEST_OWNER_ID, TEST_PET_ID))
+			.andExpect(status().isOk())
+			.andExpect(result -> {
+				Owner owner = (Owner) result.getModelAndView().getModel().get("owner");
+				assertThat(result.getModelAndView().getModel().get("pet")).isSameAs(owner.getPet(TEST_PET_ID));
+			});
+		verify(owners, times(1)).findById(TEST_OWNER_ID);
 	}
 
 	@Test
