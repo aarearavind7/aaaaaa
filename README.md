@@ -35,6 +35,10 @@ With Gradle, the command is as follows:
 
 You can then access the Petclinic at <http://localhost:8080/>.
 
+Swagger UI is available at <http://localhost:8080/swagger-ui.html>, and the generated
+OpenAPI specification at <http://localhost:8080/v3/api-docs>. The documentation includes
+the `/vets` API endpoint; routes that render HTML pages are not included.
+
 <img width="1042" alt="petclinic-screenshot" src="https://cloud.githubusercontent.com/assets/838318/19727082/2aee6d6c-9b8e-11e6-81fe-e889a5ddfded.png">
 
 You can, of course, run Petclinic in your favorite IDE.

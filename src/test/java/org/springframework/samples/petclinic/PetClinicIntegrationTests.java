@@ -63,6 +63,26 @@ public class PetClinicIntegrationTests {
 		assertThat(result.getStatusCode()).isEqualTo(HttpStatus.OK);
 	}
 
+	@Test
+	void openApiDocumentation() {
+		RestTemplate template = builder.baseUri("http://localhost:" + port).build();
+		ResponseEntity<String> result = template.exchange(RequestEntity.get("/v3/api-docs").build(), String.class);
+		assertThat(result.getStatusCode()).isEqualTo(HttpStatus.OK);
+		assertThat(result.getBody()).contains("\"openapi\":", "\"/vets\":").doesNotContain("\"/owners\":");
+	}
+
+	@Test
+	void swaggerUi() {
+		RestTemplate template = builder.baseUri("http://localhost:" + port).build();
+		ResponseEntity<String> result = template.exchange(RequestEntity.get("/swagger-ui.html").build(), String.class);
+		assertThat(result.getStatusCode()).isEqualTo(HttpStatus.OK);
+		assertThat(result.getBody()).contains("swagger-ui-bundle.js");
+		ResponseEntity<String> config = template.exchange(RequestEntity.get("/v3/api-docs/swagger-config").build(),
+				String.class);
+		assertThat(config.getStatusCode()).isEqualTo(HttpStatus.OK);
+		assertThat(config.getBody()).contains("\"url\":\"/v3/api-docs\"");
+	}
+
 	public static void main(String[] args) {
 		SpringApplication.run(PetClinicApplication.class, "--spring.docker.compose.lifecycle-management=NONE");
 	}
