@@ -293,6 +293,13 @@ class OwnerControllerTests {
 			.andExpect(model().attribute("owner",
 					hasProperty("pets", hasItem(hasProperty("visits", hasSize(greaterThan(0)))))))
 			.andExpect(view().name("owners/ownerDetails"));
+		verify(owners, times(1)).findById(TEST_OWNER_ID);
+	}
+
+	@Test
+	void showOwnerNotFound() throws Exception {
+		given(owners.findById(999)).willReturn(Optional.empty());
+		mockMvc.perform(get("/owners/{ownerId}", 999)).andExpect(status().isNotFound());
 	}
 
 	@Test
