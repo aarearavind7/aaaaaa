@@ -17,9 +17,9 @@ package org.springframework.samples.petclinic.vet;
 
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -36,17 +36,22 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 @Controller
 class VetController {
 
-	private final VetRepository vetRepository;
+	private static final Logger log = LoggerFactory.getLogger(VetController.class);
 
-	public VetController(VetRepository vetRepository) {
-		this.vetRepository = vetRepository;
+	private final VetService vetService;
+
+	public VetController(VetService vetService) {
+		this.vetService = vetService;
 	}
 
 	@GetMapping("/vets.html")
 	public String showVetList(@RequestParam(defaultValue = "1") int page, Model model,
 			RedirectAttributes redirectAttributes) {
-		Page<Vet> paginated = findPaginated(page);
+		log.debug("Loading veterinarian list: page={}", page);
+		Page<Vet> paginated = vetService.findPaginated(page);
 		if (page < 1 || page > Math.max(paginated.getTotalPages(), 1)) {
+			log.debug("Redirecting veterinarian list to first page: requestedPage={}, totalPages={}", page,
+					paginated.getTotalPages());
 			redirectAttributes.addAttribute("page", 1);
 			return "redirect:/vets.html";
 		}
@@ -59,22 +64,19 @@ class VetController {
 		model.addAttribute("totalPages", paginated.getTotalPages());
 		model.addAttribute("totalItems", paginated.getTotalElements());
 		model.addAttribute("listVets", listVets);
+		log.debug("Rendering veterinarian list: page={}, count={}, totalItems={}", page, listVets.size(),
+				paginated.getTotalElements());
 		return "vets/vetList";
-	}
-
-	private Page<Vet> findPaginated(int page) {
-		int pageSize = 5;
-		int safePage = Math.max(page, 1);
-		Pageable pageable = PageRequest.of(safePage - 1, pageSize);
-		return vetRepository.findAll(pageable);
 	}
 
 	@GetMapping({ "/vets" })
 	public @ResponseBody Vets showResourcesVetList() {
+		log.debug("Loading veterinarians for API response");
 		// Here we are returning an object of type 'Vets' rather than a collection of Vet
 		// objects so it is simpler for JSon/Object mapping
 		Vets vets = new Vets();
-		vets.getVetList().addAll(this.vetRepository.findAll());
+		vets.getVetList().addAll(this.vetService.findAll());
+		log.debug("Returning veterinarian API response: count={}", vets.getVetList().size());
 		return vets;
 	}
 

@@ -16,6 +16,9 @@
 
 package org.springframework.samples.petclinic;
 
+import java.util.List;
+
+import com.jayway.jsonpath.JsonPath;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.jupiter.api.Test;
@@ -68,6 +71,20 @@ public class PetClinicIntegrationTests {
 			.build();
 		ResponseEntity<String> result = template.exchange(RequestEntity.get("/owners?lastName=").build(), String.class);
 		assertThat(result.getStatusCode()).isEqualTo(HttpStatus.OK);
+	}
+
+	@Test
+	void veterinarianApiAndHtml() {
+		RestTemplate template = builder.baseUri("http://localhost:" + port).build();
+		ResponseEntity<String> api = template.exchange(RequestEntity.get("/vets").build(), String.class);
+		assertThat(api.getStatusCode()).isEqualTo(HttpStatus.OK);
+		assertThat(api.getBody()).isNotNull();
+		List<?> vetList = JsonPath.read(api.getBody(), "$.vetList");
+		assertThat(vetList).isNotEmpty();
+		String lastName = JsonPath.read(api.getBody(), "$.vetList[0].lastName");
+		ResponseEntity<String> html = template.exchange(RequestEntity.get("/vets.html?page=1").build(), String.class);
+		assertThat(html.getStatusCode()).isEqualTo(HttpStatus.OK);
+		assertThat(html.getBody()).contains(lastName);
 	}
 
 	@Test

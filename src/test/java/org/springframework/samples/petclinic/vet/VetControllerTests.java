@@ -27,7 +27,7 @@ import org.junit.jupiter.api.condition.DisabledInNativeImage;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Page;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.aot.DisabledInAotMode;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -37,8 +37,9 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 
 import java.util.List;
 
-import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -57,7 +58,7 @@ class VetControllerTests {
 	private MockMvc mockMvc;
 
 	@MockitoBean
-	private VetRepository vets;
+	private VetService vets;
 
 	private Vet james() {
 		Vet james = new Vet();
@@ -82,8 +83,7 @@ class VetControllerTests {
 	@BeforeEach
 	void setup() {
 		given(this.vets.findAll()).willReturn(Lists.newArrayList(james(), helen()));
-		given(this.vets.findAll(any(Pageable.class)))
-			.willReturn(new PageImpl<Vet>(Lists.newArrayList(james(), helen())));
+		given(this.vets.findPaginated(anyInt())).willReturn(new PageImpl<Vet>(Lists.newArrayList(james(), helen())));
 
 	}
 
@@ -94,6 +94,7 @@ class VetControllerTests {
 			.andExpect(status().isOk())
 			.andExpect(model().attributeExists("listVets"))
 			.andExpect(view().name("vets/vetList"));
+		verify(vets).findPaginated(1);
 
 	}
 
@@ -107,11 +108,22 @@ class VetControllerTests {
 	}
 
 	@Test
+	void showVetListAllowsEmptyFirstPage() throws Exception {
+		given(vets.findPaginated(1)).willReturn(Page.empty());
+		mockMvc.perform(get("/vets.html"))
+			.andExpect(status().isOk())
+			.andExpect(model().attribute("totalItems", 0L))
+			.andExpect(model().attribute("listVets", List.of()))
+			.andExpect(view().name("vets/vetList"));
+	}
+
+	@Test
 	void showResourcesVetList() throws Exception {
 		ResultActions actions = mockMvc.perform(get("/vets").accept(MediaType.APPLICATION_JSON))
 			.andExpect(status().isOk());
 		actions.andExpect(content().contentType(MediaType.APPLICATION_JSON))
 			.andExpect(jsonPath("$.vetList[0].id").value(1));
+		verify(vets).findAll();
 	}
 
 }
