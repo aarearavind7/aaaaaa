@@ -10,6 +10,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
@@ -25,6 +26,8 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 
+@TestPropertySource(
+		properties = { "spring.security.user.name=test-user", "spring.security.user.password=test-password" })
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
 public class PetClinicConcurrencyTests {
 
@@ -50,7 +53,17 @@ public class PetClinicConcurrencyTests {
 		// Ensure duplicate pet name does not exist yet
 		assertThat(owner.getPet(duplicatePetName)).isNull();
 
-		RestTemplate template = restTemplateBuilder.baseUri("http://localhost:" + port).build();
+		RestTemplate template = restTemplateBuilder.baseUri("http://localhost:" + port)
+			.basicAuthentication("test-user", "test-password")
+			.build();
+
+		ResponseEntity<String> form = template.getForEntity("/owners/" + ownerId + "/pets/new", String.class);
+		java.util.regex.Matcher token = java.util.regex.Pattern.compile("name=\"_csrf\"[^>]*value=\"([^\"]+)\"")
+			.matcher(form.getBody());
+		assertThat(token.find()).isTrue();
+		String csrfToken = token.group(1);
+		String cookie = form.getHeaders().getFirst(HttpHeaders.SET_COOKIE);
+		assertThat(cookie).isNotNull();
 
 		int threadCount = 2;
 		ExecutorService executorService = Executors.newFixedThreadPool(threadCount);
@@ -69,8 +82,10 @@ public class PetClinicConcurrencyTests {
 
 					HttpHeaders headers = new HttpHeaders();
 					headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+					headers.add(HttpHeaders.COOKIE, cookie.split(";", 2)[0]);
 
 					MultiValueMap<String, String> map = new LinkedMultiValueMap<>();
+					map.add("_csrf", csrfToken);
 					map.add("name", duplicatePetName);
 					map.add("birthDate", "2020-01-01");
 					map.add("type", "cat");

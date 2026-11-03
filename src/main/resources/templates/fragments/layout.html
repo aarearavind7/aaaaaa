@@ -36,7 +36,7 @@
 
         </ul>
 
-        <ul class="nav navbar-nav me-auto">
+        <ul class="nav navbar-nav me-auto" th:if="${signedIn == true}">
 
           <li th:replace="~{::menuItem ('/','home','home page','home',#{home})}">
             <span class="fa fa-home" aria-hidden="true"></span>
@@ -60,6 +60,9 @@
           </li>
 
         </ul>
+        <form th:if="${signedIn == true}" th:action="@{/logout}" method="post">
+          <button type="submit" class="btn btn-outline-light" th:text="#{login.signOut}">Sign out</button>
+        </form>
       </div>
     </div>
   </nav>

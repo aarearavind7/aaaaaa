@@ -44,6 +44,18 @@ the `/vets` API endpoint; routes that render HTML pages are not included.
 You can, of course, run Petclinic in your favorite IDE.
 See below for more details.
 
+## Signing in
+
+Application pages and APIs require authentication. Open the application and sign in
+with username `petclinic` (override with `PETCLINIC_USERNAME`). Set
+`SPRING_SECURITY_USER_PASSWORD` in your environment to choose a password; if unset,
+Spring Boot generates a development password in the startup log. Never commit passwords.
+Set an explicit secret password and use HTTPS when deploying publicly.
+
+The navigation bar includes a **Sign out** button. Forms use CSRF protection;
+API clients can use HTTP Basic authentication and must supply a CSRF token for writes.
+The health endpoint remains public for readiness checks.
+
 ## Building a Container
 
 There is no `Dockerfile` in this project. You can build a container image (if you have a docker daemon) using the Spring Boot build plugin:

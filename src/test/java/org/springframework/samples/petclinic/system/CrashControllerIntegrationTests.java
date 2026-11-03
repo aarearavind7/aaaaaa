@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -49,6 +50,8 @@ import org.springframework.http.ResponseEntity;
 // NOT Waiting https://github.com/spring-projects/spring-boot/issues/5574
 @SpringBootTest(webEnvironment = RANDOM_PORT,
 		properties = { "spring.web.error.include-message=ALWAYS", "management.endpoints.access.default=none" })
+@TestPropertySource(
+		properties = { "spring.security.user.name=test-user", "spring.security.user.password=test-password" })
 @AutoConfigureTestRestTemplate
 class CrashControllerIntegrationTests {
 
@@ -60,10 +63,10 @@ class CrashControllerIntegrationTests {
 
 	@Test
 	void triggerExceptionJson() {
-		ResponseEntity<Map<String, Object>> resp = rest.exchange(
-				RequestEntity.get("http://localhost:" + port + "/oups").build(),
-				new ParameterizedTypeReference<Map<String, Object>>() {
-				});
+		ResponseEntity<Map<String, Object>> resp = rest.withBasicAuth("test-user", "test-password")
+			.exchange(RequestEntity.get("http://localhost:" + port + "/oups").build(),
+					new ParameterizedTypeReference<Map<String, Object>>() {
+					});
 		assertThat(resp).isNotNull();
 		assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
 		assertThat(resp.getBody()).containsKey("timestamp");
@@ -78,8 +81,8 @@ class CrashControllerIntegrationTests {
 	void triggerExceptionHtml() {
 		HttpHeaders headers = new HttpHeaders();
 		headers.setAccept(List.of(MediaType.TEXT_HTML));
-		ResponseEntity<String> resp = rest.exchange("http://localhost:" + port + "/oups", HttpMethod.GET,
-				new HttpEntity<>(headers), String.class);
+		ResponseEntity<String> resp = rest.withBasicAuth("test-user", "test-password")
+			.exchange("http://localhost:" + port + "/oups", HttpMethod.GET, new HttpEntity<>(headers), String.class);
 		assertThat(resp).isNotNull();
 		assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
 		assertThat(resp.getBody()).isNotNull();

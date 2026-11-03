@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html xmlns:th="https://www.thymeleaf.org" th:replace="~{fragments/layout :: layout (~{::body},'login')}">
+<body>
+  <div class="row justify-content-center">
+    <div class="col-md-5">
+      <h2 th:text="#{login.title}">Sign in to PetClinic</h2>
+      <p th:text="#{login.description}">Enter your username and password to manage owners, pets, and visits.</p>
+      <div th:if="${param.error}" class="alert alert-danger" role="alert" th:text="#{login.error}">Invalid username or password.</div>
+      <div th:if="${param.logout}" class="alert alert-success" role="status" th:text="#{login.logout}">You have been signed out.</div>
+      <form th:action="@{/login}" method="post">
+        <div class="mb-3">
+          <label for="username" class="form-label" th:text="#{login.username}">Username</label>
+          <input id="username" name="username" type="text" class="form-control" autocomplete="username" required autofocus>
+        </div>
+        <div class="mb-3">
+          <label for="password" class="form-label" th:text="#{login.password}">Password</label>
+          <input id="password" name="password" type="password" class="form-control" autocomplete="current-password" required>
+        </div>
+        <button type="submit" class="btn btn-primary" th:text="#{login.submit}">Sign in</button>
+      </form>
+    </div>
+  </div>
+</body>
+</html>
