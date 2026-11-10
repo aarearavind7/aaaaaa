@@ -35,6 +35,18 @@ spec:
           env:
             - name: SPRING_PROFILES_ACTIVE
               value: postgres
+            - name: POSTGRES_URL
+              value: jdbc:postgresql://demo-db:5432/petclinic
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: demo-db
+                  key: username
+            - name: POSTGRES_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: demo-db
+                  key: password
             - name: SERVICE_BINDING_ROOT
               value: /bindings
             - name: PETCLINIC_USERNAME
