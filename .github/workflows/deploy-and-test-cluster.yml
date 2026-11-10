@@ -60,16 +60,22 @@ jobs:
           kubectl apply -f k8s/db.yml
           kubectl rollout status deployment/demo-db --timeout=180s
 
-      - name: Deploy the application with CI-only credentials
-        run: |
-          kubectl apply -f k8s/petclinic.yml
-          kubectl set env deployment/petclinic             PETCLINIC_USERNAME="${PETCLINIC_USERNAME}"             SPRING_SECURITY_USER_PASSWORD="${SPRING_SECURITY_USER_PASSWORD}"
+      - name: Create CI credentials and deploy the application
         env:
           PETCLINIC_USERNAME: ci-user
           SPRING_SECURITY_USER_PASSWORD: ci-only-password
+        run: |
+          kubectl create secret generic petclinic-auth             --from-literal=username="$PETCLINIC_USERNAME"             --from-literal=password="$SPRING_SECURITY_USER_PASSWORD"
+          kubectl apply -f k8s/petclinic.yml
 
       - name: Wait for the application deployment
-        run: kubectl rollout status deployment/petclinic --timeout=180s
+        run: |
+          if ! kubectl rollout status deployment/petclinic --timeout=180s; then
+            kubectl get pods -l app=petclinic -o wide
+            kubectl describe pods -l app=petclinic
+            kubectl logs deployment/petclinic --all-containers=true --tail=200 || true
+            exit 1
+          fi
 
       - name: Check health endpoints and authentication
         env:
@@ -87,12 +93,16 @@ jobs:
             sleep 2
           done
 
-          test "$(curl --silent --output /dev/null --write-out '%{http_code}'             http://127.0.0.1:8080/readyz)" = "200"
-          test "$(curl --silent --output /dev/null --write-out '%{http_code}'             http://127.0.0.1:8080/livez)" = "200"
-          test "$(curl --silent --output /dev/null --write-out '%{http_code}'             http://127.0.0.1:8080/actuator/health)" = "200"
+          ready_code=$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:8080/readyz)
+          live_code=$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:8080/livez)
+          health_code=$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:8080/actuator/health)
+          anonymous_code=$(curl --silent --output /dev/null --write-out '%{http_code}' --header 'Accept: text/html' http://127.0.0.1:8080/)
+          valid_auth_code=$(curl --silent --output /dev/null --write-out '%{http_code}' --user "$PETCLINIC_USERNAME:$SPRING_SECURITY_USER_PASSWORD" http://127.0.0.1:8080/)
+          invalid_auth_code=$(curl --silent --output /dev/null --write-out '%{http_code}' --user "$PETCLINIC_USERNAME:wrong-password" http://127.0.0.1:8080/)
 
-          test "$(curl --silent --output /dev/null --write-out '%{http_code}'             --header 'Accept: text/html'             http://127.0.0.1:8080/)" = "302"
-
-          test "$(curl --silent --output /dev/null --write-out '%{http_code}'             --user "${PETCLINIC_USERNAME}:${SPRING_SECURITY_USER_PASSWORD}"             http://127.0.0.1:8080/)" = "200"
-
-          test "$(curl --silent --output /dev/null --write-out '%{http_code}'             --user "${PETCLINIC_USERNAME}:wrong-password"             http://127.0.0.1:8080/)" = "401"
+          test "$ready_code" = "200"
+          test "$live_code" = "200"
+          test "$health_code" = "200"
+          test "$anonymous_code" = "302"
+          test "$valid_auth_code" = "200"
+          test "$invalid_auth_code" = "401"

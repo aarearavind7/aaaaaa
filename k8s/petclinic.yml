@@ -37,6 +37,16 @@ spec:
               value: postgres
             - name: SERVICE_BINDING_ROOT
               value: /bindings
+            - name: PETCLINIC_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: petclinic-auth
+                  key: username
+            - name: SPRING_SECURITY_USER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: petclinic-auth
+                  key: password
             - name: SPRING_APPLICATION_JSON
               value: |
                 {
