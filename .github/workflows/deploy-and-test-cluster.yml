@@ -62,10 +62,12 @@ jobs:
 
       - name: Create CI credentials and deploy the application
         env:
-          PETCLINIC_USERNAME: ci-user
-          SPRING_SECURITY_USER_PASSWORD: ci-only-password
+          PETCLINIC_ADMIN_USERNAME: admin
+          PETCLINIC_ADMIN_PASSWORD: ci-admin-password
+          PETCLINIC_USER_USERNAME: pet-user
+          PETCLINIC_USER_PASSWORD: ci-user-password
         run: |
-          kubectl create secret generic petclinic-auth             --from-literal=username="$PETCLINIC_USERNAME"             --from-literal=password="$SPRING_SECURITY_USER_PASSWORD"
+          kubectl create secret generic petclinic-auth --from-literal=admin-username="$PETCLINIC_ADMIN_USERNAME" --from-literal=admin-password="$PETCLINIC_ADMIN_PASSWORD" --from-literal=user-username="$PETCLINIC_USER_USERNAME" --from-literal=user-password="$PETCLINIC_USER_PASSWORD"
           kubectl apply -f k8s/petclinic.yml
 
       - name: Wait for the application deployment
@@ -79,8 +81,10 @@ jobs:
 
       - name: Check health endpoints and authentication
         env:
-          PETCLINIC_USERNAME: ci-user
-          SPRING_SECURITY_USER_PASSWORD: ci-only-password
+          PETCLINIC_ADMIN_USERNAME: admin
+          PETCLINIC_ADMIN_PASSWORD: ci-admin-password
+          PETCLINIC_USER_USERNAME: pet-user
+          PETCLINIC_USER_PASSWORD: ci-user-password
         run: |
           kubectl port-forward service/petclinic 8080:80 >/tmp/petclinic-port-forward.log 2>&1 &
           port_forward_pid=$!
@@ -97,12 +101,14 @@ jobs:
           live_code=$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:8080/livez)
           health_code=$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:8080/actuator/health)
           anonymous_code=$(curl --silent --output /dev/null --write-out '%{http_code}' --header 'Accept: text/html' http://127.0.0.1:8080/)
-          valid_auth_code=$(curl --silent --output /dev/null --write-out '%{http_code}' --user "$PETCLINIC_USERNAME:$SPRING_SECURITY_USER_PASSWORD" http://127.0.0.1:8080/)
-          invalid_auth_code=$(curl --silent --output /dev/null --write-out '%{http_code}' --user "$PETCLINIC_USERNAME:wrong-password" http://127.0.0.1:8080/)
+          admin_auth_code=$(curl --silent --output /dev/null --write-out '%{http_code}' --user "$PETCLINIC_ADMIN_USERNAME:$PETCLINIC_ADMIN_PASSWORD" http://127.0.0.1:8080/)
+          user_auth_code=$(curl --silent --output /dev/null --write-out '%{http_code}' --user "$PETCLINIC_USER_USERNAME:$PETCLINIC_USER_PASSWORD" http://127.0.0.1:8080/)
+          invalid_auth_code=$(curl --silent --output /dev/null --write-out '%{http_code}' --user "$PETCLINIC_USER_USERNAME:wrong-password" http://127.0.0.1:8080/)
 
           test "$ready_code" = "200"
           test "$live_code" = "200"
           test "$health_code" = "200"
           test "$anonymous_code" = "302"
-          test "$valid_auth_code" = "200"
+          test "$admin_auth_code" = "200"
+          test "$user_auth_code" = "200"
           test "$invalid_auth_code" = "401"

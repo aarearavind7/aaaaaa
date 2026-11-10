@@ -49,16 +49,26 @@ spec:
                   key: password
             - name: SERVICE_BINDING_ROOT
               value: /bindings
-            - name: PETCLINIC_USERNAME
+            - name: PETCLINIC_ADMIN_USERNAME
               valueFrom:
                 secretKeyRef:
                   name: petclinic-auth
-                  key: username
-            - name: SPRING_SECURITY_USER_PASSWORD
+                  key: admin-username
+            - name: PETCLINIC_ADMIN_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: petclinic-auth
-                  key: password
+                  key: admin-password
+            - name: PETCLINIC_USER_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: petclinic-auth
+                  key: user-username
+            - name: PETCLINIC_USER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: petclinic-auth
+                  key: user-password
             - name: SPRING_APPLICATION_JSON
               value: |
                 {
