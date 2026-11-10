@@ -1,31 +1,98 @@
-name: Deploy and Test Cluster
+name: Deploy and Test Kind Cluster
 
 on:
+  workflow_dispatch:
   push:
-    branches: [main]
+    branches: [feature/petclinic-improvements]
     paths:
+      - 'src/**'
+      - 'pom.xml'
+      - 'mvnw'
+      - '.mvn/**'
+      - 'Dockerfile'
       - 'k8s/**'
+      - '.github/workflows/deploy-and-test-cluster.yml'
   pull_request:
-    branches: [main]
+    branches: [feature/petclinic-improvements]
     paths:
+      - 'src/**'
+      - 'pom.xml'
+      - 'mvnw'
+      - '.mvn/**'
+      - 'Dockerfile'
       - 'k8s/**'
+      - '.github/workflows/deploy-and-test-cluster.yml'
+
+permissions:
+  contents: read
 
 jobs:
-  deploy-and-test-cluster:
+  deploy-and-test:
     runs-on: ubuntu-latest
+
     steps:
       - name: Check out the repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
-      - name: Create k8s Kind Cluster
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - name: Verify and package the application
+        run: ./mvnw -B verify
+
+      - name: Build the application image
+        run: docker build --tag petclinic:ci .
+
+      - name: Create Kind cluster
         uses: helm/kind-action@v1
+        with:
+          cluster_name: petclinic
 
-      - name: Deploy application
+      - name: Load the application image into Kind
+        run: kind load docker-image petclinic:ci --name petclinic
+
+      - name: Deploy PostgreSQL and wait for it
         run: |
-          kubectl apply -f k8s/
+          kubectl apply -f k8s/db.yml
+          kubectl rollout status deployment/demo-db --timeout=180s
 
-      - name: Wait for Pods to be ready
+      - name: Deploy the application with CI-only credentials
         run: |
-          kubectl wait --for=condition=ready pod -l app=demo-db --timeout=180s
-          kubectl wait --for=condition=ready pod -l app=petclinic --timeout=180s
+          kubectl apply -f k8s/petclinic.yml
+          kubectl set env deployment/petclinic             PETCLINIC_USERNAME="${PETCLINIC_USERNAME}"             SPRING_SECURITY_USER_PASSWORD="${SPRING_SECURITY_USER_PASSWORD}"
+        env:
+          PETCLINIC_USERNAME: ci-user
+          SPRING_SECURITY_USER_PASSWORD: ci-only-password
 
+      - name: Wait for the application deployment
+        run: kubectl rollout status deployment/petclinic --timeout=180s
+
+      - name: Check health endpoints and authentication
+        env:
+          PETCLINIC_USERNAME: ci-user
+          SPRING_SECURITY_USER_PASSWORD: ci-only-password
+        run: |
+          kubectl port-forward service/petclinic 8080:80 >/tmp/petclinic-port-forward.log 2>&1 &
+          port_forward_pid=$!
+          trap 'kill "$port_forward_pid" 2>/dev/null || true' EXIT
+
+          for attempt in $(seq 1 30); do
+            if curl --silent --fail http://127.0.0.1:8080/readyz >/dev/null; then
+              break
+            fi
+            sleep 2
+          done
+
+          test "$(curl --silent --output /dev/null --write-out '%{http_code}'             http://127.0.0.1:8080/readyz)" = "200"
+          test "$(curl --silent --output /dev/null --write-out '%{http_code}'             http://127.0.0.1:8080/livez)" = "200"
+          test "$(curl --silent --output /dev/null --write-out '%{http_code}'             http://127.0.0.1:8080/actuator/health)" = "200"
+
+          test "$(curl --silent --output /dev/null --write-out '%{http_code}'             --header 'Accept: text/html'             http://127.0.0.1:8080/)" = "302"
+
+          test "$(curl --silent --output /dev/null --write-out '%{http_code}'             --user "${PETCLINIC_USERNAME}:${SPRING_SECURITY_USER_PASSWORD}"             http://127.0.0.1:8080/)" = "200"
+
+          test "$(curl --silent --output /dev/null --write-out '%{http_code}'             --user "${PETCLINIC_USERNAME}:wrong-password"             http://127.0.0.1:8080/)" = "401"
