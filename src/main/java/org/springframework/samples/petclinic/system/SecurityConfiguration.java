@@ -18,26 +18,32 @@ import org.springframework.security.web.SecurityFilterChain;
 @Configuration
 public class SecurityConfiguration {
 
+	@Value("${PETCLINIC_ADMIN_USERNAME:${spring.security.user.name:admin}}")
+	private String adminUsername;
+
+	@Value("${PETCLINIC_ADMIN_PASSWORD:${spring.security.user.password:admin-password}}")
+	private String adminPassword;
+
+	@Value("${PETCLINIC_USER_USERNAME:pet-user}")
+	private String userUsername;
+
+	@Value("${PETCLINIC_USER_PASSWORD:user-password}")
+	private String userPassword;
+
 	@Bean
 	PasswordEncoder passwordEncoder() {
 		return new BCryptPasswordEncoder();
 	}
 
 	@Bean
-	UserDetailsService users(
-			PasswordEncoder encoder,
-			@Value("${PETCLINIC_ADMIN_USERNAME:${spring.security.user.name:admin}}") String adminUsername,
-			@Value("${PETCLINIC_ADMIN_PASSWORD:${spring.security.user.password:admin-password}}") String adminPassword,
-			@Value("${PETCLINIC_USER_USERNAME:pet-user}") String userUsername,
-			@Value("${PETCLINIC_USER_PASSWORD:user-password}") String userPassword) {
-
-		UserDetails admin = User.withUsername(adminUsername)
-			.password(encoder.encode(adminPassword))
+	UserDetailsService users(PasswordEncoder encoder) {
+		UserDetails admin = User.withUsername(this.adminUsername)
+			.password(encoder.encode(this.adminPassword))
 			.roles("ADMIN")
 			.build();
 
-		UserDetails user = User.withUsername(userUsername)
-			.password(encoder.encode(userPassword))
+		UserDetails user = User.withUsername(this.userUsername)
+			.password(encoder.encode(this.userPassword))
 			.roles("USER")
 			.build();
 
