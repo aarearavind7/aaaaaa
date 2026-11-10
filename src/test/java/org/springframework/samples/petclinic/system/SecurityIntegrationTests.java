@@ -88,10 +88,8 @@ class SecurityIntegrationTests {
 
 	@Test
 	void adminOnlyEndpointRequiresAdminRole() throws Exception {
-		mvc.perform(get("/actuator/env").with(user("pet-user").roles("USER")))
-			.andExpect(status().isForbidden());
-		mvc.perform(get("/actuator/env").with(user("admin").roles("ADMIN")))
-			.andExpect(status().isOk());
+		mvc.perform(get("/actuator/env").with(user("pet-user").roles("USER"))).andExpect(status().isForbidden());
+		mvc.perform(get("/actuator/env").with(user("admin").roles("ADMIN"))).andExpect(status().isOk());
 	}
 
 	@Test

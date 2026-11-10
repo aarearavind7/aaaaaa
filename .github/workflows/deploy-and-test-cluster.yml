@@ -42,10 +42,7 @@ jobs:
           cache: maven
 
       - name: Verify and package the application
-        run: |
-          ./mvnw -B spring-javaformat:apply
-          git diff -- src/test/java/org/springframework/samples/petclinic/system/SecurityIntegrationTests.java
-          ./mvnw -B verify
+        run: ./mvnw -B verify
 
       - name: Build the application image
         run: docker build --tag petclinic:ci .
