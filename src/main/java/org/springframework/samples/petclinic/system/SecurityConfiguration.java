@@ -58,6 +58,8 @@ public class SecurityConfiguration {
 					.requestMatchers("/login", "/resources/**", "/webjars/**", "/actuator/health",
 							"/actuator/health/**", "/livez", "/readyz")
 					.permitAll()
+					.requestMatchers("/actuator/env")
+					.hasRole("ADMIN")
 					.anyRequest()
 					.authenticated())
 			.formLogin(form -> form.loginPage("/login").defaultSuccessUrl("/").permitAll())

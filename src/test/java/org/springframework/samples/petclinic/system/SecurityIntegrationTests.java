@@ -21,8 +21,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest(classes = PetClinicApplication.class,
-		properties = { "spring.security.user.name=test-user", "spring.security.user.password=test-password" })
+@SpringBootTest(classes = PetClinicApplication.class, properties = {
+		"PETCLINIC_ADMIN_USERNAME=test-admin", "PETCLINIC_ADMIN_PASSWORD=test-admin-password",
+		"PETCLINIC_USER_USERNAME=test-user", "PETCLINIC_USER_PASSWORD=test-password" })
 @AutoConfigureMockMvc
 class SecurityIntegrationTests {
 
@@ -50,6 +51,16 @@ class SecurityIntegrationTests {
 	}
 
 	@Test
+	void bothUsersCanSignIn() throws Exception {
+		mvc.perform(formLogin().user("test-admin").password("test-admin-password"))
+			.andExpect(authenticated().withUsername("test-admin"))
+			.andExpect(redirectedUrl("/"));
+		mvc.perform(formLogin().user("test-user").password("test-password"))
+			.andExpect(authenticated().withUsername("test-user"))
+			.andExpect(redirectedUrl("/"));
+	}
+
+	@Test
 	void incorrectPasswordIsRejected() throws Exception {
 		mvc.perform(formLogin().user("test-user").password("incorrect"))
 			.andExpect(redirectedUrl("/login?error"))
@@ -60,7 +71,8 @@ class SecurityIntegrationTests {
 
 	@Test
 	void signInAndSignOutProtectTheSession() throws Exception {
-		MockHttpSession session = (MockHttpSession) mvc.perform(formLogin().user("test-user").password("test-password"))
+		MockHttpSession session = (MockHttpSession) mvc
+			.perform(formLogin().user("test-user").password("test-password"))
 			.andExpect(authenticated().withUsername("test-user"))
 			.andExpect(redirectedUrl("/"))
 			.andReturn()
@@ -75,6 +87,12 @@ class SecurityIntegrationTests {
 			.andExpect(unauthenticated());
 		assertThat(session.isInvalid()).isTrue();
 		mvc.perform(get("/").accept(MediaType.TEXT_HTML)).andExpect(redirectedUrl("/login"));
+	}
+
+	@Test
+	void adminOnlyEndpointRequiresAdminRole() throws Exception {
+		mvc.perform(get("/actuator/env").with(user("test-user").roles("USER"))).andExpect(status().isForbidden());
+		mvc.perform(get("/actuator/env").with(user("test-admin").roles("ADMIN"))).andExpect(status().isOk());
 	}
 
 	@Test

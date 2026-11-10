@@ -104,6 +104,8 @@ jobs:
           admin_auth_code=$(curl --silent --output /dev/null --write-out '%{http_code}' --user "$PETCLINIC_ADMIN_USERNAME:$PETCLINIC_ADMIN_PASSWORD" http://127.0.0.1:8080/)
           user_auth_code=$(curl --silent --output /dev/null --write-out '%{http_code}' --user "$PETCLINIC_USER_USERNAME:$PETCLINIC_USER_PASSWORD" http://127.0.0.1:8080/)
           invalid_auth_code=$(curl --silent --output /dev/null --write-out '%{http_code}' --user "$PETCLINIC_USER_USERNAME:wrong-password" http://127.0.0.1:8080/)
+          admin_env_code=$(curl --silent --output /dev/null --write-out '%{http_code}' --user "$PETCLINIC_ADMIN_USERNAME:$PETCLINIC_ADMIN_PASSWORD" http://127.0.0.1:8080/actuator/env)
+          user_env_code=$(curl --silent --output /dev/null --write-out '%{http_code}' --user "$PETCLINIC_USER_USERNAME:$PETCLINIC_USER_PASSWORD" http://127.0.0.1:8080/actuator/env)
 
           test "$ready_code" = "200"
           test "$live_code" = "200"
@@ -112,3 +114,5 @@ jobs:
           test "$admin_auth_code" = "200"
           test "$user_auth_code" = "200"
           test "$invalid_auth_code" = "401"
+          test "$admin_env_code" = "200"
+          test "$user_env_code" = "403"
