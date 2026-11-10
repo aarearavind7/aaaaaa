@@ -21,9 +21,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest(classes = PetClinicApplication.class, properties = {
-		"PETCLINIC_ADMIN_USERNAME=test-admin", "PETCLINIC_ADMIN_PASSWORD=test-admin-password",
-		"PETCLINIC_USER_USERNAME=test-user", "PETCLINIC_USER_PASSWORD=test-password" })
+@SpringBootTest(classes = PetClinicApplication.class,
+		properties = { "PETCLINIC_ADMIN_USERNAME=test-admin", "PETCLINIC_ADMIN_PASSWORD=test-admin-password",
+				"PETCLINIC_USER_USERNAME=test-user", "PETCLINIC_USER_PASSWORD=test-password" })
 @AutoConfigureMockMvc
 class SecurityIntegrationTests {
 
@@ -71,8 +71,7 @@ class SecurityIntegrationTests {
 
 	@Test
 	void signInAndSignOutProtectTheSession() throws Exception {
-		MockHttpSession session = (MockHttpSession) mvc
-			.perform(formLogin().user("test-user").password("test-password"))
+		MockHttpSession session = (MockHttpSession) mvc.perform(formLogin().user("test-user").password("test-password"))
 			.andExpect(authenticated().withUsername("test-user"))
 			.andExpect(redirectedUrl("/"))
 			.andReturn()
@@ -91,8 +90,10 @@ class SecurityIntegrationTests {
 
 	@Test
 	void adminOnlyEndpointRequiresAdminRole() throws Exception {
-		mvc.perform(get("/actuator/env").with(user("test-user").roles("USER"))).andExpect(status().isForbidden());
-		mvc.perform(get("/actuator/env").with(user("test-admin").roles("ADMIN"))).andExpect(status().isOk());
+		mvc.perform(get("/actuator/env").with(user("test-user").roles("USER")))
+			.andExpect(status().isForbidden());
+		mvc.perform(get("/actuator/env").with(user("test-admin").roles("ADMIN")))
+			.andExpect(status().isOk());
 	}
 
 	@Test
